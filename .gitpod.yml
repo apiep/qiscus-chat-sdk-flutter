@@ -24,3 +24,5 @@ vscode:
   extensions:
     - Dart-Code.flutter@3.7.1:gujVOCgsbgoN2/po8X1tfA==
     - Dart-Code.dart-code@3.7.1:3XT4xvtPoRdNasA5smNMiA==
+    - ryanluker.vscode-coverage-gutters@2.4.3:tM+rEMr7GcjNqaGIKXjxmw==
+    - markis.code-coverage@1.2.1:dTy0jMD7tFbKQdcCoqcP+g==

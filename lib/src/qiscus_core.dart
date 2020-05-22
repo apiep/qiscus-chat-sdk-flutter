@@ -1196,14 +1196,14 @@ extension _TaskX<L1, R1> on Task<Either<L1, R1>> {
 
 extension _FutureX<T> on Future<T> {
   void toCallback1(void Function(Exception) callback) {
-    this.then(
+    then(
       (_) => callback(null),
       onError: (Object error) => callback(error as Exception),
     );
   }
 
   void toCallback2(void Function(T, Exception) callback) {
-    this.then(
+    then(
       (value) => callback(value, null),
       onError: (Object error) => callback(null, error as Exception),
     );
