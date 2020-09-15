@@ -107,6 +107,8 @@ class Injector {
     factory_(() => GetMessageListUseCase(resolve()));
     factory_(() => SendMessageUseCase(resolve()));
     factory_(() => UpdateMessageStatusUseCase(resolve()));
+    factory_(() => GetFileListUseCase(resolve()));
+    factory_(() => SearchMessageUseCase(resolve()));
     singleton(() => OnMessageReceived(
           resolve(),
           resolve<UpdateMessageStatusUseCase>(),

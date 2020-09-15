@@ -76,4 +76,46 @@ class MessageRepositoryImpl implements MessageRepository {
       return _dio.sendApiRequest(request).then((r) => request.format(r));
     });
   }
+
+  @override
+  Task<Either<QError, Stream<Message>>> getFileList({
+    List<int> roomIds,
+    String fileType,
+    int page,
+    int limit,
+  }) {
+    return task(() async {
+      final request = GetFileListRequest(
+        roomIds: roomIds,
+        fileType: fileType,
+        page: page,
+        limit: limit,
+      );
+      return _dio.sendApiRequest(request).then(request.format);
+    });
+  }
+
+  Task<Either<QError, Stream<Message>>> searchMessage({
+    String query,
+    List<int> roomIds,
+    String userId,
+    List<String> type,
+    QRoomType roomType,
+    int page,
+    int limit,
+  }) {
+    return task(() async {
+      final request = SearchMessageRequest(
+        query: query,
+        userId: userId,
+        roomIds: roomIds,
+        limit: limit,
+        roomType: roomType,
+        page: page,
+        type: type,
+      );
+
+      return _dio.sendApiRequest(request).then(request.format);
+    });
+  }
 }

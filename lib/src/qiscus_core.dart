@@ -978,4 +978,52 @@ class QiscusSDK {
       type: QMessageType.attachment,
     );
   }
+
+  void getFileList({
+    List<int> roomIds,
+    String fileType,
+    int page,
+    int limit,
+    @required void Function(List<QMessage>, QError) callback,
+  }) {
+    final useCase = __<GetFileListUseCase>();
+    final params = GetFileListParams(
+      roomIds: roomIds,
+      fileType: fileType,
+      page: page,
+      limit: limit,
+    );
+
+    _authenticated
+        .andThen(useCase(params))
+        .rightMap((it) => it.map((m) => m.toModel()))
+        .rightMap((it) => it.toList())
+        .toCallback_((value, error) async => callback(await value, error));
+  }
+
+  void searchMessage({
+    String query,
+    List<int> roomIds,
+    String userId,
+    List<String> type,
+    int page,
+    int limit,
+    @required void Function(List<QMessage>, QError) callback,
+  }) {
+    final useCase = __<SearchMessageUseCase>();
+    final params = SearchMessageParams(
+      query: query,
+      roomIds: roomIds,
+      userId: userId,
+      type: type,
+      page: page,
+      limit: limit,
+    );
+
+    _authenticated
+        .andThen(useCase.call(params))
+        .rightMap((it) => it.map((m) => m.toModel()))
+        .rightMap((it) => it.toList())
+        .toCallback_((value, error) async => callback(await value, error));
+  }
 }

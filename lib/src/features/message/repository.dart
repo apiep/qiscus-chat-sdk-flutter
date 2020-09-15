@@ -28,4 +28,20 @@ abstract class MessageRepository {
     bool isForEveryone = true,
     bool isHard = true,
   });
+
+  Task<Either<QError, Stream<Message>>> getFileList({
+    List<int> roomIds,
+    String fileType,
+    int page,
+    int limit,
+  });
+  Task<Either<QError, Stream<Message>>> searchMessage({
+    String query,
+    List<int> roomIds,
+    String userId,
+    List<String> type,
+    QRoomType roomType,
+    int page,
+    int limit,
+  });
 }

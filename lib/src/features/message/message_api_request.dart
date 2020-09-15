@@ -132,3 +132,91 @@ class DeleteMessagesRequest extends IApiRequest<List<Message>> {
     return data.map((m) => Message.fromJson(m)).toList();
   }
 }
+
+class GetFileListRequest extends IApiRequest<Stream<Message>> {
+  GetFileListRequest({
+    this.roomIds,
+    this.fileType,
+    this.page,
+    this.limit,
+  });
+
+  final List<int> roomIds;
+  final String fileType;
+  final int page, limit;
+
+  get url => 'file_list';
+  get method => IRequestMethod.post;
+  get body => <String, dynamic>{
+        'room_ids': roomIds?.map((it) => it.toString()),
+        'file_type': fileType,
+        'page': page,
+        'limit': limit,
+      };
+
+  Stream<Message> format(json) async* {
+    var data =
+        (json['results']['comments'] as List).cast<Map<String, dynamic>>();
+
+    for (var c in data) {
+      yield Message.fromJson(c);
+    }
+  }
+}
+
+class SearchMessageRequest extends IApiRequest<Stream<Message>> {
+  SearchMessageRequest({
+    this.query,
+    this.roomIds,
+    this.userId,
+    this.type,
+    this.roomType,
+    this.page,
+    this.limit,
+  });
+
+  final String query;
+  final List<int> roomIds;
+  final String userId;
+  final List<String> type;
+  final QRoomType roomType;
+  final int page, limit;
+
+  get url => 'search';
+  get method => IRequestMethod.post;
+  get body {
+    final roomType = optionOf(this.roomType).map((type) {
+      switch (type) {
+        case QRoomType.single: return 'single';
+        case QRoomType.group: return 'group';
+        case QRoomType.channel: return 'group';
+      }
+    }).toNullable();
+    final isPublic = optionOf(this.roomType).map((type) {
+      switch (type) {
+        case QRoomType.single: return false;
+        case QRoomType.group: return false;
+        case QRoomType.channel: return true;
+      }
+    }).toNullable();
+
+    return <String, dynamic>{
+      'query': query,
+      'room_ids': roomIds,
+      'sender': userId,
+      'type': type,
+      'room_type': roomType,
+      'is_public': isPublic,
+      'page': page,
+      'limit': limit,
+    };
+  }
+
+  Stream<Message> format(json) async* {
+    final data = (json['results']['comments'] as List).cast<Map<String, dynamic>>();
+    for (var c in data) {
+      yield Message.fromJson(c);
+    }
+  }
+}
+

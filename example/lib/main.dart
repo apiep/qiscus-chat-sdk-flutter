@@ -1,5 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:qiscus_chat_sdk/qiscus_chat_sdk.dart';
 import 'package:flutter/widgets.dart';
+
+import 'chat_room_page.dart';
 
 void main() => runApp(MyApp());
 
@@ -15,6 +20,9 @@ class MyHomepage extends StatefulWidget {
 
 class _MyHomepageState extends State<MyHomepage> {
   QiscusSDK _qiscusSDK;
+  QChatRoom room;
+
+  QiscusSDK get qiscus => _qiscusSDK;
 
   @override
   void initState() {
@@ -39,6 +47,93 @@ class _MyHomepageState extends State<MyHomepage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container();
+    return MaterialApp(
+      home: FutureBuilder<QChatRoom>(
+        future: Future.microtask(() async {
+          await _init();
+          await _login();
+          var room = await _getRoom();
+          return room;
+        }),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              child: CircularProgressIndicator(),
+            );
+          }
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData) {
+            var room = snapshot.data;
+            return ChatRoomPage(
+              qiscus: qiscus,
+              room: room,
+            );
+          } else {
+            return Container(
+              child: Center(
+                child: Text('Something bad happen, please check logs.'),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _init() async {
+    var completer = Completer<void>();
+
+    const appId = 'sdksample';
+    qiscus.setup(appId, callback: (error) {
+      if (error != null) {
+        completer.completeError(error);
+      } else {
+        completer.complete();
+      }
+    });
+
+    return completer.future;
+  }
+
+  Future<QAccount> _login() async {
+    var completer = Completer<QAccount>();
+
+    const userId = 'guest-101';
+    const userKey = 'passkey';
+
+    qiscus.setUser(
+      userId: userId,
+      userKey: userKey,
+      callback: (account, error) {
+        if (error != null) {
+          completer.completeError(error);
+        } else {
+          completer.complete(account);
+        }
+      },
+    );
+
+    return completer.future;
+  }
+
+  Future<QChatRoom> _getRoom() async {
+    var completer = Completer<QChatRoom>();
+
+    const targetUser = 'guest-102';
+    qiscus.chatUser(
+      userId: targetUser,
+      callback: (room, error) {
+        if (error != null) {
+          completer.completeError(error);
+        } else {
+          setState(() {
+            this.room = room;
+          });
+          completer.complete(room);
+        }
+      },
+    );
+
+    return completer.future;
   }
 }
