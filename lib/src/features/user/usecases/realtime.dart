@@ -33,6 +33,8 @@ class Presence with EquatableMixin {
 
   @override
   List<Object> get props => [userId];
+  @override
+  bool get stringify => true;
 }
 
 class TypingUseCase extends UseCase<IRealtimeService, void, Typing>

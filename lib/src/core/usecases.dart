@@ -1,6 +1,6 @@
 part of qiscus_chat_sdk.core;
 
-class NoParams extends Equatable {
+class NoParams with EquatableMixin {
   const NoParams();
 
   @override
@@ -15,6 +15,7 @@ class NoRepository extends Equatable {
   @override
   List<Object> get props => [];
 }
+
 final noRepository = const NoRepository();
 
 abstract class UseCase<Repository, ReturnType, Params> {

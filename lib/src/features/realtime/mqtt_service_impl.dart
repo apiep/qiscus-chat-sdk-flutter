@@ -67,6 +67,7 @@ class MqttServiceImpl implements IRealtimeService {
   final _subscribedTopics = <String>[];
 
   MqttClient get _mqtt => __mqtt ??= _getClient();
+  Option<MqttClient> get mqtt => optionOf(_mqtt);
 
   Future<bool> get _isConnected {
     if (_s.isRealtimeEnabled) {
@@ -101,49 +102,52 @@ class MqttServiceImpl implements IRealtimeService {
   @override
   MqttClientConnectionStatus get connectionState => _mqtt?.connectionStatus;
 
-  Stream<Notification> get _notification {
-    return _mqtt
-        ?.forTopic(TopicBuilder.notification(_s.token))
-        ?.asyncMap<List<Notification>>((event) {
-      var jsonPayload =
-          jsonDecode(event.payload.toString()) as Map<String, dynamic>;
-      var actionType = jsonPayload['action_topic'] as String;
-      var payload = jsonPayload['payload'] as Map<String, dynamic>;
+  Stream<Notification> notification() async* {
+    var stream = optionOf(_mqtt)
+        .map((it) => it.forTopic(TopicBuilder.notification(_s.token)));
+    // var stream = _mqtt?.forTopic(TopicBuilder.notification(_s.token));
+    await for (var event in stream.stream()) {
+      var json = decodeJson(event.payload.toString());
+      yield* json.fold(() async* {
+        yield* Stream.empty();
+      }, (json) async* {
+        //
+        var actionType = json['action_topic'] as String;
+        var payload = json['payload'] as Map<String, dynamic>;
 
-      if (actionType == 'delete_message') {
-        var mPayload =
-            payload['data']['deleted_messages'] as List<Map<String, dynamic>>;
-        return mPayload
-            .map((m) {
-              var roomId = m['room_id'] as String;
-              var uniqueIds = (m['message_unique_ids'] as List).cast<String>();
-              return uniqueIds.map(
-                (uniqueId) => Tuple2(int.parse(roomId), uniqueId),
-              );
-            })
-            .expand((it) => it)
-            .map(
-              (tuple) => Notification.message_deleted(
-                roomId: tuple.value1,
-                messageUniqueId: tuple.value2,
-              ),
-            )
-            .toList();
-      }
-
-      if (actionType == 'clear_room') {
-        var rooms_ =
-            payload['data']['deleted_rooms'] as List<Map<String, dynamic>>;
-        return rooms_.map((r) {
-          return Notification.room_cleared(
-            roomId: r['id'] as int,
-          );
-        }).toList();
-      }
-
-      return [];
-    })?.expand(id);
+        if (actionType == 'delete_message') yield* parseMessageDeleted(payload);
+      });
+    }
   }
+
+  Stream<Notification> parseClearRoom(Map<String, dynamic> payload) async* {
+    var rooms = (payload['data']['deleted_rooms'] as List);
+    rooms = rooms.cast<Map<String, dynamic>>();
+
+    for (var room in rooms) {
+      yield Notification.room_cleared(roomId: room['id'] as int);
+    }
+  }
+
+  Stream<Notification> parseMessageDeleted(
+    Map<String, dynamic> payload,
+  ) async* {
+    var actionPayload = (payload['data']['deleted_messages'] as List)
+        .cast<Map<String, dynamic>>();
+
+    for (var m in actionPayload) {
+      var roomId = m['room_id'] as String;
+      var uniqueIds = (m['message_unique_ids'] as List).cast<String>();
+      for (var id in uniqueIds) {
+        yield Notification.message_deleted(
+          roomId: int.parse(roomId),
+          messageUniqueId: id,
+        );
+      }
+    }
+  }
+
+  Stream<Notification> get _notification => notification();
 
   @override
   Either<QError, void> publishPresence({
@@ -170,15 +174,15 @@ class MqttServiceImpl implements IRealtimeService {
   }
 
   @override
-  Stream<Message> subscribeChannelMessage({String uniqueId}) {
-    return _mqtt
-        ?.forTopic(TopicBuilder.channelMessageNew('', uniqueId))
-        ?.asyncMap((event) {
-      // appId/channelId/c;
-      var messageData = event.payload.toString();
-      var messageJson = jsonDecode(messageData) as Map<String, dynamic>;
-      return Message.fromJson(messageJson);
-    });
+  Stream<Message> subscribeChannelMessage({String uniqueId}) async* {
+    var stream = mqtt.map(
+      (it) => it.forTopic(TopicBuilder.channelMessageNew('', uniqueId)),
+    );
+
+    await for (var event in stream.stream()) {
+      var json = decodeJson(event.payload.toString());
+      yield* json.foldAsStream((data) => Stream.value(Message.fromJson(data)));
+    }
   }
 
   @override
@@ -382,4 +386,26 @@ class RoomCleared {
   });
 
   ChatRoom toResponse() => ChatRoom(id: some(roomId));
+}
+
+extension OptionStreamX<Value> on Option<Stream<Value>> {
+  Stream<Value> stream() async* {
+    yield* fold(() async* {
+      yield* Stream<Value>.empty();
+    }, (value) async* {
+      yield* value;
+    });
+  }
+}
+
+extension OptionX<Value> on Option<Value> {
+  Stream<Output> foldAsStream<Output>(
+    Stream<Output> Function(Value) func,
+  ) async* {
+    yield* fold(() async* {
+      yield Stream<Value>.empty();
+    }, (value) async* {
+      yield value;
+    });
+  }
 }

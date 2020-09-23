@@ -20,38 +20,65 @@ class SyncServiceImpl implements IRealtimeService {
   void log(String str) => logger.log('SyncServiceImpl::- $str');
 
   // region Producer
-  Stream<RealtimeEvent> get _syncEvent$ => _interval$
-      .map((_) {
-        var request = SynchronizeEventRequest(lastEventId: _eventId);
-        return dio
-            .sendApiRequest(request)
-            .then((r) => request.format(r))
-            .asStream();
-      })
-      .flatten()
-      .tap((_) => log('QiscusSyncAdapter: synchronize-event'))
-      .map((data) => data.value2)
-      .expand(id)
-      .asBroadcastStream();
+  Stream<RealtimeEvent> syncEvent$(Stream<void> interval) async* {
+    await for (var _ in interval) {
+      var request = SynchronizeEventRequest(lastEventId: _eventId);
+      var r = await dio.sendApiRequest(request).then(request.format);
+      log('QiscusSyncAdapter: synchronize-event');
+      yield* Stream.fromIterable(r.value2);
+    }
+  }
 
-  Stream<Message> get _sync$ => _interval$
-      .map((_) {
-        var request = SynchronizeRequest(lastMessageId: _messageId);
-        return dio
-            .sendApiRequest(request)
-            .then((r) => request.format(r))
-            .asStream();
-      })
-      .flatten()
-      .tap((res) {
-        if (res.value1 > storage.lastMessageId) {
-          storage.lastMessageId = res.value1;
-        }
-      })
-      .tap((_) => log('QiscusSyncAdapter: synchronize'))
-      .map((it) => it.value2)
-      .expand(id)
-      .asBroadcastStream();
+  // Stream<RealtimeEvent> get _syncEvent$ => _interval$
+  //     .map((_) {
+  //       var request = SynchronizeEventRequest(lastEventId: _eventId);
+  //       return dio
+  //           .sendApiRequest(request)
+  //           .then((r) => request.format(r))
+  //           .asStream();
+  //     })
+  //     .flatten()
+  //     .tap((_) => log('QiscusSyncAdapter: synchronize-event'))
+  //     .map((data) => data.value2)
+  //     .expand(id)
+  //     .asBroadcastStream();
+  Stream<RealtimeEvent> get _syncEvent$ =>
+      syncEvent$(_interval$).asBroadcastStream();
+
+  Stream<Message> sync$(Stream<void> interval) async* {
+    await for (var _ in interval) {
+      var request = SynchronizeRequest(lastMessageId: _messageId);
+      var r = await dio.sendApiRequest(request).then(request.format);
+
+      if (r.value1 > storage.lastMessageId) {
+        storage.lastMessageId = r.value1;
+      }
+
+      log('QiscusSyncAdapter: synchronize');
+
+      yield* Stream.fromIterable(r.value2);
+    }
+  }
+
+  // Stream<Message> get _sync$ => _interval$
+  //     .map((_) {
+  //       var request = SynchronizeRequest(lastMessageId: _messageId);
+  //       return dio
+  //           .sendApiRequest(request)
+  //           .then((r) => request.format(r))
+  //           .asStream();
+  //     })
+  //     .flatten()
+  //     .tap((res) {
+  //       if (res.value1 > storage.lastMessageId) {
+  //         storage.lastMessageId = res.value1;
+  //       }
+  //     })
+  //     .tap((_) => log('QiscusSyncAdapter: synchronize'))
+  //     .map((it) => it.value2)
+  //     .expand(id)
+  //     .asBroadcastStream();
+  Stream<Message> get _sync$ => sync$(_interval$).asBroadcastStream();
 
   Stream<MessageReadEvent> get _messageRead$ => _syncEvent$ //
       .where((event) => event is MessageReadEvent)

@@ -107,7 +107,7 @@ class MqttMessageReceivedEvent extends MqttEventHandler<void, Message> {
   }
 
   @override
-  receive(message) async* {
+  Stream<Message> receive(message) async* {
     var decode = (String str) => jsonDecode(str) as Map<String, dynamic>;
     var data = decode(message.payload.toString());
     yield Message.fromJson(data);
